@@ -1,0 +1,600 @@
+
+
+@startuml
+scale 0.6
+left to right direction
+
+skinparam packageBackgroundColor<<Application>> #F3F3FF
+skinparam packageBackgroundColor<<Interfaces>> #FFF3F3
+skinparam packageBackgroundColor<<Model>> #F3FFF3
+skinparam packageBackgroundColor<<MongoDB>> #FFF9E3
+skinparam packageBackgroundColor<<REST>> #E3F9FF
+skinparam packageBackgroundColor<<nlp>> #F3FFF3
+skinparam packageBackgroundColor<<utils>> #E3FFF3
+
+package aggregation {
+
+  class AllSpeechAggregation {
+    - dbHandler: MongoDatabaseHandler
+    + aggregate(): void
+  }
+
+  class SessionAggregation {
+    - dbHandler: MongoDatabaseHandler
+    + aggregateAllSessions(): void
+    + aggregateSingleSession(sessionIndex: String): void
+  }
+
+  class SpeakerAggregation {
+    - dbHandler: MongoDatabaseHandler
+    + aggregateAllSpeakers(): void
+    + aggregateSingleSpeaker(speakerName: String): void
+  }
+
+  class TopicAggregation {
+    - dbHandler: MongoDatabaseHandler
+    - topicToSpeechIds: Map<String, List<Object>>
+    + aggregateAllTopics(): void
+    - aggregateSingleTopic(topicName: String, speechIds: List<Object>): void
+    - prepareTopicAssignments(): void
+    - determineHighestTopic(speech: Document): String
+  }
+
+  class AggregationTest {
+    + main(args: String[]): void
+  }
+
+  AggregationTest --> AllSpeechAggregation : uses
+  AggregationTest --> SessionAggregation : uses
+  AggregationTest --> SpeakerAggregation : uses
+  AggregationTest --> TopicAggregation : uses
+
+  AllSpeechAggregation --> MongoDatabaseHandler
+  SessionAggregation --> MongoDatabaseHandler
+  SpeakerAggregation --> MongoDatabaseHandler
+  TopicAggregation --> MongoDatabaseHandler
+  aggregation --> database : imports
+
+}
+
+package latex {
+
+  interface LaTeXComponent {
+    +toTex(): String
+  }
+
+  abstract class LaTeXDocument implements LaTeXComponent {
+    - List<LaTeXComponent> preambleComponents
+    - List<LaTeXComponent> bodyComponents
+    + addToBody(component: LaTeXComponent): void
+    + toTex(): String
+    # includeTableOfContents(): boolean
+    # generateTitleSection(): String
+  }
+
+  class MultiProtokollDocument extends LaTeXDocument {
+    - List<String> protokollIds
+    - MongoDatabaseHandler mongoHandler
+    - processProtocols(): void
+    - processProtokoll(protokollId: String): void
+    + generateTitleSection(): String
+  }
+
+  class ProtokollDocument extends LaTeXDocument {
+    - String titel
+    - String datum
+    - List<Document> reden
+    - Path exportDir
+    - MongoDatabaseHandler mongoHandler
+    - organizeAndAddSpeeches(): void
+    - extractAgendaItems(): Set<String>
+    + generateTitleSection(): String
+  }
+
+  class RednerRedenDocument extends LaTeXDocument {
+    - Document redner
+    - List<Document> reden
+    - Path exportDir
+    - MongoDatabaseHandler mongoHandler
+    - initializeDocument(): void
+    - addSpeakerInfo(): void
+    - filterValidSpeeches(speeches): List<Document>
+    - groupSpeechesByProtocol(): Map<String, List<Document>>
+    + generateTitleSection(): String
+  }
+
+  class ThemaRedenDocument extends LaTeXDocument {
+    - String thema
+    - List<Document> reden
+    - Path exportDir
+    - MongoDatabaseHandler mongoHandler
+    - List<Document> filteredReden
+    - filterValidSpeeches(speeches): List<Document>
+    - initializeDocument(): void
+    - groupSpeechesBySpeaker(): Map<String, List<Document>>
+    - addThemeAnalysis(): void
+    + generateTitleSection(): String
+  }
+
+  class AbgeordnetenInfoComponent implements LaTeXComponent {
+    - String rednerName
+    - Path exportDir
+    - MongoDatabaseHandler mongoHandler
+    - downloadAndSaveImage(url: String, exportDir: Path): String
+    + toTex(): String
+  }
+
+  class SpeechComponent implements LaTeXComponent {
+    - Document rede
+    - Path exportDir
+    - MongoDatabaseHandler mongoHandler
+    - boolean showAgendaItems
+    + toTex(): String
+  }
+
+  class SpeechNLPComponent implements LaTeXComponent {
+    - Document nlpResults
+    + toTex(): String
+  }
+
+  ' Beziehungen
+  LaTeXDocument <|-- MultiProtokollDocument
+  LaTeXDocument <|-- ProtokollDocument
+  LaTeXDocument <|-- RednerRedenDocument
+  LaTeXDocument <|-- ThemaRedenDocument
+
+  LaTeXComponent <|.. LaTeXDocument
+  LaTeXComponent <|.. AbgeordnetenInfoComponent
+  LaTeXComponent <|.. SpeechComponent
+  LaTeXComponent <|.. SpeechNLPComponent
+
+  package impl {
+    interface LaTeXComponent {
+      + toTex() : String
+    }
+
+    class LaTeXUtils {
+      + escapeTeX(text : String) : String
+      + cleanUnicodeForLaTeX(text : String) : String
+      + escapeTikzLabel(text : String) : String
+      + formatNumberForPlot(number : double) : String
+      + escapeXML(text : String) : String
+    }
+
+    LaTeXComponent <.. LaTeXUtils
+  }
+
+  package XMI {
+    class RednerRedenXMIExporter {
+      - redner : Document
+      - reden : List<Document>
+      - mongoHandler : MongoDatabaseHandler
+      + generateXMI() : String
+    }
+
+    class ThemaRedenXMIExporter {
+      - thema : String
+      - reden : List<Document>
+      - relevantReden : List<Document>
+      - mongoHandler : MongoDatabaseHandler
+      + generateXMI() : String
+    }
+
+    class XMIExporter {
+      - rede : Document
+      - nlpData : Document
+      - redenList : List<Document>
+      - mongoHandler : MongoDatabaseHandler
+      + createForProtokoll(String, MongoDatabaseHandler) : XMIExporter
+      + generateXMI() : String
+    }
+
+    impl.LaTeXComponent <.. RednerRedenXMIExporter
+    impl.LaTeXComponent <.. ThemaRedenXMIExporter
+    impl.LaTeXComponent <.. XMIExporter
+  }
+
+}
+
+
+package data {
+
+  interface Abgeordnete {
+    +String getId()
+    +void setId(String id)
+    +String getName()
+    +void setName(String name)
+    +String getFirstName()
+    +void setFirstName(String firstName)
+    +String getTitle()
+    +void setTitle(String title)
+    +Date getGeburtsdatum()
+    +void setGeburtsdatum(Date geburtsdatum)
+    +String getGeburtsort()
+    +void setGeburtsort(String geburtsort)
+    +Date getSterbedatum()
+    +void setSterbedatum(Date sterbedatum)
+    +String getGeschlecht()
+    +void setGeschlecht(String geschlecht)
+    +String getBeruf()
+    +void setBeruf(String beruf)
+    +String getFamilienstand()
+    +void setFamilienstand(String familienstand)
+    +String getReligion()
+    +void setReligion(String religion)
+    +String getVita()
+    +void setVita(String vita)
+    +String getParty()
+    +void setParty(String party)
+    +List<Membership> getMemberships()
+    +void setMemberships(List<Membership> memberships)
+    +List<Reden> getReden()
+    +void setReden(List<Reden> reden)
+    +List<Kommentare> getKommentare()
+    +void setKommentare(List<Kommentare> kommentare)
+    +String getPictureUrl()
+    +void setPictureUrl(String pictureUrl)
+  }
+
+  interface Agenda {
+    +String getIndex()
+    +void setIndex(String index)
+    +String getId()
+    +void setId(String id)
+    +String getTitle()
+    +void setTitle(String title)
+  }
+
+  interface Fraktionen {
+    +String getName()
+    +void setName(String name)
+    +String getVorsitzender()
+    +void setVorsitzender(String vorsitzender)
+  }
+
+  interface Kommentare {
+    +String getId()
+    +void setId(String id)
+    +String getText()
+    +void setText(String text)
+    +String getAbgeordneteId()
+    +void setAbgeordneteId(String abgeordneteId)
+    +String getRedenId()
+    +void setRedenId(String redenId)
+  }
+
+  interface Membership {
+    +String getRole()
+    +void setRole(String role)
+    +String getMember()
+    +void setMember(String member)
+    +Date getBegin()
+    +void setBegin(Date begin)
+    +Date getEnd()
+    +void setEnd(Date end)
+    +String getLabel()
+    +void setLabel(String label)
+  }
+
+  interface Protocol {
+    +long getDate()
+    +void setDate(long date)
+    +long getStartTime()
+    +void setStartTime(long startTime)
+    +long getEndTime()
+    +void setEndTime(long endTime)
+    +int getIndex()
+    +void setIndex(int index)
+    +String getPlace()
+    +void setPlace(String place)
+    +int getWp()
+    +void setWp(int wp)
+    +String getTitle()
+    +void setTitle(String title)
+  }
+
+  interface Reden {
+    +String getId()
+    +void setId(String id)
+    +String getText()
+    +void setText(String text)
+    +String getSpeakerId()
+    +void setSpeakerId(String speakerId)
+    +Protocol getProtocol()
+    +void setProtocol(Protocol protocol)
+    +List<TextContent> getTextContent()
+    +void setTextContent(List<TextContent> textContent)
+    +Agenda getAgenda()
+    +void setAgenda(Agenda agenda)
+  }
+
+  interface TextContent {
+    +String getId()
+    +void setId(String id)
+    +String getSpeakerId()
+    +void setSpeakerId(String speakerId)
+    +String getText()
+    +void setText(String text)
+    +String getType()
+    +void setType(String type)
+  }
+
+}
+
+package data.impl {
+
+  class Abgeordnete_File_Impl implements Abgeordnete {
+    -String id
+    -String name
+    -String firstName
+    -String title
+    -Date geburtsdatum
+    -Date sterbedatum
+    -String geburtsort
+    -String geschlecht
+    -String beruf
+    -String familienstand
+    -String religion
+    -String vita
+    -String party
+    -List<Membership> memberships
+    -List<Reden> reden
+    -List<Kommentare> kommentare
+    -String pictureUrl
+  }
+
+  class Agenda_File_Impl implements Agenda {
+    -String index
+    -String id
+    -String title
+  }
+
+  class Fraktionen_File_Impl implements Fraktionen {
+    -String name
+    -String vorsitzender
+  }
+
+  class Kommentare_File_Impl implements Kommentare {
+    -String id
+    -String text
+    -String abgeordneteId
+    -String redenId
+  }
+
+  class Membership_File_Impl implements Membership {
+    -String role
+    -String member
+    -Date begin
+    -Date end
+    -String label
+  }
+
+  class Protocol_File_Impl implements Protocol {
+    -long date
+    -long startTime
+    -long endTime
+    -int index
+    -String place
+    -int wp
+    -String title
+  }
+
+  class Reden_File_Impl implements Reden {
+    -String id
+    -String text
+    -String speakerId
+    -Protocol protocol
+    -List<TextContent> textContent
+    -Agenda agenda
+  }
+
+  class TextContent_File_Impl implements TextContent {
+    -String id
+    -String speakerId
+    -String text
+    -String type
+  }
+
+}
+
+package database {
+
+  class MongoDatabaseHandler {
+    -MongoDBConfig config
+    -MongoClient client
+    -MongoDatabase database
+    +MongoDatabaseHandler(String configPath)
+    +void init()
+    +MongoDatabase getDatabase()
+    +void insertDocument(String collectionName, Document document)
+    +FindIterable<Document> findDocuments(String collectionName, Bson filter)
+    +UpdateResult updateDocument(String collectionName, Bson filter, Bson update)
+    +void deleteDocument(String collectionName, Bson filter)
+    +AggregateIterable<Document> aggregateDocuments(String collectionName, List<Bson> pipeline)
+    +long countDocuments(String collectionName, Bson filter)
+    +void close()
+    +boolean documentExists(String collectionName, String field, String value)
+  }
+
+  class MongoDBConfig {
+    +MongoDBConfig(String path)
+    +String getMongoHostname()
+    +String getMongoUsername()
+    +String getMongoPassword()
+    +int getMongoPort()
+    +String getMongoDatabase()
+    +String getMongoCollection()
+  }
+
+}
+
+package scraper {
+
+  class BundestagScraper {
+    -MongoDatabaseHandler mongoHandler
+    +BundestagScraper(String configPath)
+    +List<String> fetchXmlLinks()
+    +void downloadAndStoreXmlFiles()
+    +void startScheduledScraper()
+    +void main(String[] args)
+  }
+
+  class VideosScraper {
+    -List<String> TARGET_VIDEO_IDS
+    +void main(String[] args)
+    +void downloadVideo(String videoUrl, String videoId)
+  }
+
+}
+
+package parser {
+
+  class AbgeordneteParser {
+    -MongoDatabaseHandler mongoHandler
+    +AbgeordneteParser(MongoDatabaseHandler handler)
+    +void parseAbgeordnete()
+    +String getElementText(Element parent, String tag)
+    +void main(String[] args)
+  }
+
+  class BilderParser {
+    -MongoDatabaseHandler mongoHandler
+    +BilderParser(MongoDatabaseHandler handler)
+    +void parseBilder()
+    +void main(String[] args)
+  }
+
+  class KommentareParser {
+    -MongoDatabaseHandler mongoHandler
+    +KommentareParser(MongoDatabaseHandler handler)
+    +void parseAndStoreAllKommentare()
+    +String getElementText(Element parent, String tag)
+    +void parseKommentare(String xmlContent)
+    +void main(String[] args)
+  }
+
+  class PlenarprotokollParser {
+    -MongoDatabaseHandler mongoHandler
+    +PlenarprotokollParser(MongoDatabaseHandler handler)
+    +void parseAndStoreAllProtokolle()
+    +String getElementText(Element parent, String tag)
+    +void parseProtokoll(String xmlContent)
+    +void main(String[] args)
+  }
+
+  class VideoLinksStorage {
+    -MongoDatabaseHandler mongoHandler
+    +VideoLinksStorage(MongoDatabaseHandler handler)
+    +void storeVideoLinks()
+    +void main(String[] args)
+  }
+
+  class VideoParser {
+    -MongoDatabaseHandler mongoHandler
+    +VideoParser(MongoDatabaseHandler mongoHandler)
+    +void storeVideoForRede(String redeID, String videoUrl, boolean download)
+    +String downloadVideo(String videoUrl)
+    +void main(String[] args)
+  }
+
+}
+
+package nlp {
+
+  class RedenNLP {
+    -MongoDatabaseHandler mongoHandler
+    -DUUIComposer composer
+    +RedenNLP(MongoDatabaseHandler handler)
+    +List<Document> getAllSpeeches()
+    +JCas createJCasFromSpeech(Document speechDoc)
+    +void processJCas(JCas jcas)
+    +void saveResults(String speechId, JCas jcas)
+    +String serializeCasToXMI(JCas jcas)
+    +void processAllSpeeches()
+    +void main(String[] args)
+  }
+
+  class VideosNLP {
+    -MongoDatabaseHandler dbHandler
+    +VideosNLP(MongoDatabaseHandler dbHandler)
+    +void processAllVideos()
+    +void processVideo(File videoFile)
+    +void main(String[] args)
+  }
+
+  class XmiImporter {
+    -MongoDatabaseHandler dbHandler
+    +XmiImporter(MongoDatabaseHandler dbHandler)
+    +void importXmiFiles()
+    +void importXmiFile(File xmiFile)
+    +File decompressGzipFile(File gzFile)
+    +List<String> extractAnnotations(CAS cas, String annotationType)
+    +List<Document> extractTopicAnnotations(CAS cas)
+    +List<Document> extractSentimentAnnotationsWithIds(CAS cas)
+    +void main(String[] args)
+  }
+
+}
+
+package api {
+
+  class ParliamentAPI {
+    -MongoDatabaseHandler mongoHandler
+    +ParliamentAPI()
+    +void main(String[] args)
+    +void getAllReden(Context ctx)
+    +void getRedeById(Context ctx)
+    +void getKommentareByRedeId(Context ctx)
+    +void getAllProtokolle(Context ctx)
+    +void getAllAbgeordnete(Context ctx)
+    +void getBildById(Context ctx)
+  }
+
+}
+
+package utils {
+
+  class SpeechUtils {
+    +static int parsePage(String pageParam)
+    +static boolean isValidSearchQuery(String query)
+    +static Document buildSearchFilter(String searchQuery)
+    +static void enrichSpeechWithMetadata(Document speech, MongoDatabaseHandler mongoHandler)
+    +static String extractSessionTitle(Document rede)
+    +static List<Map<String, String>> formatSpeechText(Document rede)
+    +static Document getRednerBySpeakerName(String speakerName, MongoDatabaseHandler mongoHandler)
+    +static String getBildUrlForRedner(Document redner, MongoDatabaseHandler mongoHandler)
+    +static String getVideoUrlForRede(String redeId, MongoDatabaseHandler mongoHandler)
+    +static List<Map<String, Object>> extractNamedEntities(Document rede)
+    +static List<Map<String, Object>> extractPOSTags(Document rede)
+    -static boolean isValidPOS(String pos)
+    +static List<Map<String, Object>> extractSentiments(Document rede)
+  }
+
+}
+
+' Adding relationships
+Abgeordnete --* Membership
+Abgeordnete --* Reden
+Abgeordnete --* Kommentare
+Reden --* TextContent
+Reden --* Protocol
+Reden --* Agenda
+Agenda --* Reden
+Protocol --* Reden
+MongoDatabaseHandler --> Abgeordnete_File_Impl
+MongoDatabaseHandler --> Agenda_File_Impl
+MongoDatabaseHandler --> Fraktionen_File_Impl
+MongoDatabaseHandler --> Kommentare_File_Impl
+MongoDatabaseHandler --> Membership_File_Impl
+MongoDatabaseHandler --> Protocol_File_Impl
+MongoDatabaseHandler --> Reden_File_Impl
+MongoDatabaseHandler --> TextContent_File_Impl
+BundestagScraper --> MongoDatabaseHandler
+VideosScraper --> MongoDatabaseHandler
+AbgeordneteParser --> MongoDatabaseHandler
+KommentareParser --> MongoDatabaseHandler
+PlenarprotokollParser --> MongoDatabaseHandler
+RedenNLP --> MongoDatabaseHandler
+VideoParser --> MongoDatabaseHandler
+VideoLinksStorage --> MongoDatabaseHandler
+@enduml
