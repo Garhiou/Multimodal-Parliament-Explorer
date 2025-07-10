@@ -1,0 +1,67 @@
+﻿@startuml
+
+left to right direction
+'right to left direction
+actor Admin_1
+actor Admin_2
+actor User
+
+
+rectangle "Multimodal Parliament Explorer 7_2"{
+
+    usecase "Bundestag-Seite scrapen" as UC1
+    usecase "Protokolle finden und in DB speichern" as UC2
+    usecase "Abgeordnetenabbilden und ihre Meta-Daten (auch Bilder) in DB Speichern (als Abgeordnetenprofile)" as UC3
+    usecase "Reden, Kommentare parsen und  in DB speichern" as UC4
+    usecase "Tagesordnungspunke extrahieren und als Meta-Daten der Reden speichern" as UC5
+    usecase "Videos serialisieren und in DB speichern " as UC6
+    usecase "NLP-Verarbeitung, UIMA-Pipeline durchführen " as UC7
+    usecase "Nlp-Ergebnisse in DB speichern" as UC8
+    usecase "Nlp-Ergebnisse visualisieren" as UC9
+    usecase "Topics, POS, Sentiments, Named Entites der Reden und Kommentare zeigen " as UC10
+    usecase "Reden und Kommentare mit NLP-Analyse in Abgeordnetenprofile zeigen " as UC11
+    usecase "Reden in PDF exporterien " as UC12
+    usecase "Reden als PDF herunterladen" as UC13
+    usecase "Reden als voll-text mit videos anschauen" as UC14
+    usecase "Abgeordnetenprofile anschauen " as UC15
+    usecase "Tagesordnungspunkte anschschauen" as UC16
+    usecase "Reden und kommentare anschauen" as UC17
+    usecase "Reden und Kommentare suchen" as UC18
+    usecase "NLP Diagramme gefilterter Reden ansehen" as UC19
+
+}
+
+' Beziehungen
+UC2 .> UC1 : <<include>>
+UC3 .> UC2 : <<include>>
+UC4 .> UC2 : <<include>>
+'UC2 .> UC5 : <<include>>
+UC6 .> UC5 : <<include>>
+UC7 .> UC4 : <<include>>
+UC8 .> UC7 : <<include>>
+UC10 .> UC9 : <<include>>
+'UC12 .> UC11 : <<extend>>
+UC13 <. UC15 : <<extend>>
+UC14 .> UC15 : <<include>>
+UC17 .> UC18 : <<include>>
+
+
+' Akteure mit Use Cases verbinden
+Admin_1 --> UC1
+Admin_1 --> UC4
+Admin_1 --> UC7
+Admin_1 --> UC5
+
+
+
+Admin_2 --> UC9
+Admin_2 --> UC12
+Admin_2 --> UC11
+
+
+UC15 <-- User
+UC16 <-- User
+UC13 <-- User
+UC18 <-- User
+UC19 <-- User
+@enduml
